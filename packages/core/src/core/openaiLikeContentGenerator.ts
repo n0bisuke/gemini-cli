@@ -145,6 +145,7 @@ export interface OpenAILikeConfig {
   baseUrl: string;
   apiKey: string;
   modelName: string;
+  apiVersion?: string;
 }
 
 /**
@@ -155,11 +156,25 @@ export class OpenAILikeContentGenerator implements ContentGenerator {
   private apiKey: string;
   private baseUrl: string;
   private defaultModel: string;
+  private apiVersion: string;
 
   constructor(config: OpenAILikeConfig) {
     this.apiKey = config.apiKey;
-    this.baseUrl = config.baseUrl.replace(/\/$/, ''); // Remove trailing slash
+    this.baseUrl = config.baseUrl.replace(/\/$/, '');
     this.defaultModel = config.modelName || DEFAULT_OPENAI_LIKE_MODEL;
+    this.apiVersion = config.apiVersion || process.env.AZURE_API_VERSION || '2024-12-01-preview';
+  }
+
+  /**
+ * Build the appropriate chat completions URL based on the provider
+ */
+  private buildChatCompletionsUrl(): string {
+    // Check if this is Azure OpenAI (contains azure.com in the URL)
+    if (this.baseUrl.includes('azure.com')) {
+      return `${this.baseUrl}/chat/completions?api-version=${this.apiVersion}`;
+    }
+    // For other OpenAI-compatible APIs
+    return `${this.baseUrl}/chat/completions`;
   }
 
   /**
@@ -347,7 +362,7 @@ export class OpenAILikeContentGenerator implements ContentGenerator {
       })
     };
 
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+    const response = await fetch(this.buildChatCompletionsUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -395,7 +410,7 @@ export class OpenAILikeContentGenerator implements ContentGenerator {
       })
     };
 
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+    const response = await fetch(this.buildChatCompletionsUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
